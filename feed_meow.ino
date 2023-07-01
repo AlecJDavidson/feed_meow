@@ -109,11 +109,11 @@ void loop() {
   // Feed if 5am or 5pm
   if (currentHourUtc == 5 || currentHourUtc == 17) {
 
-    feedState = "on";
-    Serial.println("Feeding on");
+    // feedState = "on";
+    // Serial.println("Feeding on");
     feed();
-    Serial.println("Feeding off");
-    feedState = "off";
+    // Serial.println("Feeding off");
+    // feedState = "off";
   }
 
   // FOR TESTING ONLY
