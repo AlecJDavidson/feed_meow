@@ -38,7 +38,7 @@ unsigned long currentTime = millis();
 // Previous time
 unsigned long previousTime = 0;
 // Define timeout time in milliseconds (example: 2000ms = 2s)
-const long timeoutTime = 20000;
+const long timeoutTime = 2000;
 
 
 // Function to move the motor forward for 15 seconds
