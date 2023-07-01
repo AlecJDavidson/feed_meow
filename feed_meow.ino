@@ -53,17 +53,17 @@ void feed() {
   digitalWrite(enable1Pin, 0);
 }
 
-String getCurrentTime(int hour, int minute, int second) {
-  String now;
-  String stringHour;
-  String stringMinute;
-  String stringSecond;
-  stringHour = String(hour);
-  stringMinute = String(minute);
-  stringSecond = String(second);
-  now = stringHour + ":" + stringMinute + ":" + stringSecond;
-  return now;
-}
+// String getCurrentTime(int hour, int minute, int second) {
+//   String now;
+//   String stringHour;
+//   String stringMinute;
+//   String stringSecond;
+//   stringHour = String(hour);
+//   stringMinute = String(minute);
+//   stringSecond = String(second);
+//   now = stringHour + ":" + stringMinute + ":" + stringSecond;
+//   return now;
+// }
 
 void setup() {
   Serial.begin(115200);
@@ -105,21 +105,22 @@ void loop() {
   // Check if it's time to feed
   int currentHourUtc = timeClient.getHours();
   int currentMinuteUtc = timeClient.getMinutes();
+  int currentSecondUtc = timeClient.getSeconds();
 
   // Feed if 5am or 5pm
-  if (currentHourUtc == 5 || currentHourUtc == 17) {
+  if (currentHourUtc == 05 && currentMinuteUtc == 00 && currentSecondUtc == 00 || currentHourUtc == 17 && currentMinuteUtc == 00 && currentSecondUtc == 00) {
 
-    // feedState = "on";
-    // Serial.println("Feeding on");
+    feedState = "on";
+    Serial.println("Feeding on");
     feed();
-    // Serial.println("Feeding off");
-    // feedState = "off";
+    Serial.println("Feeding off");
+    feedState = "off";
   }
 
   // FOR TESTING ONLY
   // int currentTime = timeClient.getEpochTime();
-  // Serial.println(currentTime);
-  // if (currentTime == testTime){
+  // // Serial.println(currentTime);
+  // if (currentHourUtc == 00 && currentMinuteUtc == 04 && currentSecondUtc == 00) {
   //   feedState = "on";
   //   Serial.println("Feeding on");
   //   feed();
@@ -176,7 +177,7 @@ void loop() {
 
             // Display current time
 
-            client.println("<p>Current Time EST - " + getCurrentTime(timeClient.getHours(), timeClient.getMinutes(), timeClient.getSeconds()) + "</p>");
+            // client.println("<p>Current Time EST - " + getCurrentTime(timeClient.getHours(), timeClient.getMinutes(), timeClient.getSeconds()) + "</p>");
             if (feedState == "off") {
               client.println("<p><a href=\"/feed\"><button class=\"button\">Feed</button></a></p>");
             } else {
