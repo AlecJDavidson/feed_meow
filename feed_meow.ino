@@ -1,7 +1,9 @@
+
 // libraries
 #include <WiFi.h>
 #include <WiFiUdp.h>
 #include <NTPClient.h>
+#include <EEPROM.h> // Include the EEPROM library
 
 // Replace with your network credentials
 const char* ssid = "SSID";
@@ -32,6 +34,12 @@ const int output26 = 26;
 const int output27 = 27;
 const int enable1Pin = 14;
 
+// Feed duration in seconds
+unsigned long feedDuration = 15;
+
+// Feed hours
+int feedHour1 = 5;
+int feedHour2 = 17;
 
 // Current time
 unsigned long currentTime = millis();
@@ -40,30 +48,16 @@ unsigned long previousTime = 0;
 // Define timeout time in milliseconds (example: 2000ms = 2s)
 const long timeoutTime = 2000;
 
-
-// Function to move the motor forward for 15 seconds
-// 15 seconds averages out to one cup per auger at 7.5v
+// Function to move the motor forward for the specified feed duration
 void feed() {
   digitalWrite(output27, LOW);
   digitalWrite(output26, HIGH);
   digitalWrite(enable1Pin, 255);
-  delay(15000);
+  delay(feedDuration * 1000); // Multiply feed duration by 1000 to convert it to milliseconds
   digitalWrite(output27, LOW);
   digitalWrite(output26, LOW);
   digitalWrite(enable1Pin, 0);
 }
-
-// String getCurrentTime(int hour, int minute, int second) {
-//   String now;
-//   String stringHour;
-//   String stringMinute;
-//   String stringSecond;
-//   stringHour = String(hour);
-//   stringMinute = String(minute);
-//   stringSecond = String(second);
-//   now = stringHour + ":" + stringMinute + ":" + stringSecond;
-//   return now;
-// }
 
 void setup() {
   Serial.begin(115200);
@@ -94,11 +88,20 @@ void setup() {
 
   // Start the HTTP server
   server.begin();
+
+  // Read feed duration from EEPROM
+  EEPROM.begin(sizeof(feedDuration));
+  EEPROM.get(0, feedDuration);
+  EEPROM.end();
+
+  // Read feed hours from EEPROM
+  EEPROM.begin(sizeof(feedHour1) + sizeof(feedHour2));
+  EEPROM.get(sizeof(feedDuration), feedHour1);
+  EEPROM.get(sizeof(feedDuration) + sizeof(feedHour1), feedHour2);
+  EEPROM.end();
 }
 
 void loop() {
-
-
   // Update the NTP client
   timeClient.update();
 
@@ -107,8 +110,9 @@ void loop() {
   int currentMinuteUtc = timeClient.getMinutes();
   int currentSecondUtc = timeClient.getSeconds();
 
-  // Feed if 5am or 5pm
-  if (currentHourUtc == 05 && currentMinuteUtc == 00 && currentSecondUtc == 00 || currentHourUtc == 17 && currentMinuteUtc == 00 && currentSecondUtc == 00) {
+  // Feed if it's feedHour1 or feedHour2
+  if ((currentHourUtc == feedHour1 && currentMinuteUtc == 0 && currentSecondUtc == 0) ||
+      (currentHourUtc == feedHour2 && currentMinuteUtc == 0 && currentSecondUtc == 0)) {
 
     feedState = "on";
     Serial.println("Feeding on");
@@ -116,17 +120,6 @@ void loop() {
     Serial.println("Feeding off");
     feedState = "off";
   }
-
-  // FOR TESTING ONLY
-  // int currentTime = timeClient.getEpochTime();
-  // // Serial.println(currentTime);
-  // if (currentHourUtc == 00 && currentMinuteUtc == 04 && currentSecondUtc == 00) {
-  //   feedState = "on";
-  //   Serial.println("Feeding on");
-  //   feed();
-  //   Serial.println("Feeding off");
-  //   feedState = "off";
-  // }
 
   WiFiClient client = server.available();  // Listen for incoming clients
 
@@ -184,6 +177,22 @@ void loop() {
               client.println("<p><a href=\"/feeding\"><button class=\"button button2\">Feeding</button></a></p>");
             }
 
+            // Display feed duration form
+            client.println("<form action=\"/saveduration\" method=\"POST\">");
+            client.println("<label for=\"duration\">Feed Duration (seconds):</label><br>");
+            client.println("<input type=\"text\" id=\"duration\" name=\"duration\" value=\"" + String(feedDuration) + "\"><br><br>");
+            client.println("<input type=\"submit\" value=\"Save\">");
+            client.println("</form>");
+
+            // Display feed hours form
+            client.println("<form action=\"/savefeedhours\" method=\"POST\">");
+            client.println("<label for=\"feedHour1\">Feed Hour 1:</label><br>");
+            client.println("<input type=\"number\" id=\"feedHour1\" name=\"feedHour1\" value=\"" + String(feedHour1) + "\"><br><br>");
+            client.println("<label for=\"feedHour2\">Feed Hour 2:</label><br>");
+            client.println("<input type=\"number\" id=\"feedHour2\" name=\"feedHour2\" value=\"" + String(feedHour2) + "\"><br><br>");
+            client.println("<input type=\"submit\" value=\"Save\">");
+            client.println("</form>");
+
             client.println("</body></html>");
 
             // The HTTP response ends with another blank line
@@ -204,5 +213,75 @@ void loop() {
     client.stop();
     Serial.println("Client disconnected.");
     Serial.println("");
+  }
+}
+
+void saveFeedDuration(String data) {
+  // Convert the data to unsigned long
+  unsigned long newDuration = data.toInt();
+
+  // Only update the feed duration if the new value is valid
+  if (newDuration > 0) {
+    // Write the new feed duration to EEPROM
+    EEPROM.begin(sizeof(feedDuration));
+    EEPROM.put(0, newDuration);
+    EEPROM.commit();
+    EEPROM.end();
+
+    // Update the feedDuration variable
+    feedDuration = newDuration;
+  }
+}
+
+void saveFeedHours(String hour1Data, String hour2Data) {
+  // Convert the data to integers
+  int newHour1 = hour1Data.toInt();
+  int newHour2 = hour2Data.toInt();
+
+  // Only update the feed hours if the new values are valid
+  if (newHour1 >= 0 && newHour1 < 24 && newHour2 >= 0 && newHour2 < 24) {
+    // Write the new feed hours to EEPROM
+    EEPROM.begin(sizeof(feedHour1) + sizeof(feedHour2));
+    EEPROM.put(sizeof(feedDuration), newHour1);
+    EEPROM.put(sizeof(feedDuration) + sizeof(feedHour1), newHour2);
+    EEPROM.commit();
+    EEPROM.end();
+
+    // Update the feedHour1 and feedHour2 variables
+    feedHour1 = newHour1;
+    feedHour2 = newHour2;
+  }
+}
+
+void handleHttpPost() {
+  if (header.indexOf("POST /saveduration") >= 0) {
+    // Find the start and end of the data in the header
+    int start = header.indexOf("duration=");
+    int end = header.indexOf(" ", start);
+    if (start >= 0 && end >= 0) {
+      // Extract the data
+      String data = header.substring(start + 9, end);
+      // Save the feed duration
+      saveFeedDuration(data);
+    }
+  } else if (header.indexOf("POST /savefeedhours") >= 0) {
+    // Find the start and end of the data for feedHour1
+    int startHour1 = header.indexOf("feedHour1=");
+    int endHour1 = header.indexOf("&", startHour1);
+    if (startHour1 >= 0 && endHour1 >= 0) {
+      // Extract the data for feedHour1
+      String hour1Data = header.substring(startHour1 + 10, endHour1);
+
+      // Find the start and end of the data for feedHour2
+      int startHour2 = header.indexOf("feedHour2=");
+      int endHour2 = header.indexOf(" ", startHour2);
+      if (startHour2 >= 0 && endHour2 >= 0) {
+        // Extract the data for feedHour2
+        String hour2Data = header.substring(startHour2 + 10, endHour2);
+
+        // Save the feed hours
+        saveFeedHours(hour1Data, hour2Data);
+      }
+    }
   }
 }
