@@ -134,7 +134,7 @@ void loop() {
         char c = client.read();  // read a byte, then
         Serial.write(c);         // print it out the serial monitor
         header += c;
-        if (c == '\n') {  // if the byte is a newline character
+        if (c== '\n') {  // if the byte is a newline character
           // if the current line is blank, you got two newline characters in a row.
           // that's the end of the client HTTP request, so send a response:
           if (currentLine.length() == 0) {
@@ -151,6 +151,35 @@ void loop() {
               feed();
               feedState = "off";
               Serial.println("Feeding off");
+            } else if (header.indexOf("POST /saveduration") >= 0) {
+              // Find the start and end of the data in the header
+              int start = header.indexOf("duration=");
+              int end = header.indexOf(" ", start);
+              if (start >= 0 && end >= 0) {
+                // Extract the data
+                String data = header.substring(start + 9, end);
+                // Save the feed duration
+                saveFeedDuration(data);
+              }
+            } else if (header.indexOf("POST /savefeedhours") >= 0) {
+              // Find the start and end of the data for feedHour1
+              int startHour1 = header.indexOf("feedHour1=");
+              int endHour1 = header.indexOf("&", startHour1);
+              if (startHour1 >= 0 && endHour1 >= 0) {
+                // Extract the data for feedHour1
+                String hour1Data = header.substring(startHour1 + 10, endHour1);
+
+                // Find the start and end of the data for feedHour2
+                int startHour2 = header.indexOf("feedHour2=");
+                int endHour2 = header.indexOf(" ", startHour2);
+                if (startHour2 >= 0 && endHour2 >= 0) {
+                  // Extract the data for feedHour2
+                  String hour2Data = header.substring(startHour2 + 10, endHour2);
+
+                  // Save the feed hours
+                  saveFeedHours(hour1Data, hour2Data);
+                }
+              }
             }
 
             // Display the HTML web page
@@ -250,38 +279,5 @@ void saveFeedHours(String hour1Data, String hour2Data) {
     // Update the feedHour1 and feedHour2 variables
     feedHour1 = newHour1;
     feedHour2 = newHour2;
-  }
-}
-
-void handleHttpPost() {
-  if (header.indexOf("POST /saveduration") >= 0) {
-    // Find the start and end of the data in the header
-    int start = header.indexOf("duration=");
-    int end = header.indexOf(" ", start);
-    if (start >= 0 && end >= 0) {
-      // Extract the data
-      String data = header.substring(start + 9, end);
-      // Save the feed duration
-      saveFeedDuration(data);
-    }
-  } else if (header.indexOf("POST /savefeedhours") >= 0) {
-    // Find the start and end of the data for feedHour1
-    int startHour1 = header.indexOf("feedHour1=");
-    int endHour1 = header.indexOf("&", startHour1);
-    if (startHour1 >= 0 && endHour1 >= 0) {
-      // Extract the data for feedHour1
-      String hour1Data = header.substring(startHour1 + 10, endHour1);
-
-      // Find the start and end of the data for feedHour2
-      int startHour2 = header.indexOf("feedHour2=");
-      int endHour2 = header.indexOf(" ", startHour2);
-      if (startHour2 >= 0 && endHour2 >= 0) {
-        // Extract the data for feedHour2
-        String hour2Data = header.substring(startHour2 + 10, endHour2);
-
-        // Save the feed hours
-        saveFeedHours(hour1Data, hour2Data);
-      }
-    }
   }
 }
