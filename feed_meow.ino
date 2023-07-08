@@ -1,4 +1,3 @@
-
 #include <WiFi.h>
 #include <WiFiUdp.h>
 #include <NTPClient.h>
@@ -51,17 +50,6 @@ const int enable1Pin = 14;
 
 // End Setup Motors
 
-// Feed function to move motors
-// void feed(int valueSeconds) {
-//   digitalWrite(output27, LOW);
-//   digitalWrite(output26, HIGH);
-//   digitalWrite(enable1Pin, 255);
-//   delay(valueSeconds * 1000);  // converts seconds to milliseconds
-//   digitalWrite(output27, LOW);
-//   digitalWrite(output26, LOW);
-//   digitalWrite(enable1Pin, 0);
-// }
-
 unsigned long feedStartTime = 0;
 unsigned long feedDuration = 0;
 
@@ -72,7 +60,6 @@ void feed(int valueSeconds) {
   digitalWrite(output26, HIGH);
   digitalWrite(enable1Pin, 255);
   Serial.println("Feeding now");
-
 }
 
 // End feed function
@@ -115,7 +102,6 @@ void setup() {
     html += ".feed-button { padding: 20px 40px; font-size: 24px; background-color: red; color: white; border-radius: 10px; border: none; }";
     html += ".settings-button { margin-top: 20px; padding: 10px 20px; font-size: 16px; background-color: blue; color: white; border-radius: 10px; border: none; }";
     html += ".header { border-radius: 10px; background-color: lightgray; padding: 10px; }";
-    html += ".horizontal-rule { border: none; border-top: 2px solid gray; margin: 30px 0; }";
     html += ".save-button { margin: 0 auto; display: block; padding: 10px 20px; font-size: 16px; background-color: green; color: white; border: none; }";
     html += "</style></head><body>";
     html += "<div class='header'>";
@@ -146,11 +132,12 @@ void setup() {
     html += "Settings";
     html += "</h1>";
     html += "</div>";
-    html += "<h2>Settings</h2>";
+    html += "<hr class='horizontal-rule'>";
+    html += "<br>";
     html += "<form method='POST' action='/settings'>";
-    html += "Feed Amount: <input type='text' name='feedAmount' value='" + String(settings.feedAmount) + "'><br><br>";
-    html += "Feed Time One: <input type='text' name='feedTimeOne' value='" + String(settings.feedTimeOne) + "'><br><br>";
-    html += "Feed Time Two: <input type='text' name='feedTimeTwo' value='" + String(settings.feedTimeTwo) + "'><br><br>";
+    html += "<b>Feed Amount</b>: <input type='text' name='feedAmount' value='" + String(settings.feedAmount) + "'><br><br>";
+    html += "<b>Feed Time One</b>: <input type='text' name='feedTimeOne' value='" + String(settings.feedTimeOne) + "'><br><br>";
+    html += "<b>Feed Time Two</b>: <input type='text' name='feedTimeTwo' value='" + String(settings.feedTimeTwo) + "'><br><br>";
     html += "<input type='submit' class='save-button' value='Save'>";
     html += "</form>";
     html += "</body></html>";
@@ -193,7 +180,7 @@ void loop() {
     digitalWrite(output27, LOW);
     digitalWrite(output26, LOW);
     digitalWrite(enable1Pin, 0);
-    feedStartTime = 0; // Reset the feeding start time
+    feedStartTime = 0;  // Reset the feeding start time
     Serial.println("Feeding Complete");
   }
 
@@ -264,3 +251,4 @@ bool writeSettingsToFile(const FeedSettings& settings) {
   file.close();
   return false;
 }
+
