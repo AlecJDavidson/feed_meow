@@ -19,10 +19,6 @@ struct FeedSettings {
   String feedTimeTwo;
 };
 
-
-
-
-
 // Handle Time
 
 // Get UTC Time
@@ -40,7 +36,6 @@ unsigned long currentTime = millis();
 unsigned long previousTime = 0;
 // Define timeout time in milliseconds (example: 2000ms = 2s)
 
-
 // End Handle Time
 
 // Setup Motors
@@ -57,24 +52,37 @@ const int enable1Pin = 14;
 // End Setup Motors
 
 // Feed function to move motors
+// void feed(int valueSeconds) {
+//   digitalWrite(output27, LOW);
+//   digitalWrite(output26, HIGH);
+//   digitalWrite(enable1Pin, 255);
+//   delay(valueSeconds * 1000);  // converts seconds to milliseconds
+//   digitalWrite(output27, LOW);
+//   digitalWrite(output26, LOW);
+//   digitalWrite(enable1Pin, 0);
+// }
+
+unsigned long feedStartTime = 0;
+unsigned long feedDuration = 0;
+
 void feed(int valueSeconds) {
+  feedStartTime = millis();
+  feedDuration = valueSeconds * 1000;
   digitalWrite(output27, LOW);
   digitalWrite(output26, HIGH);
   digitalWrite(enable1Pin, 255);
-  delay(valueSeconds * 1000); // converts seconds to milliseconds
-  digitalWrite(output27, LOW);
-  digitalWrite(output26, LOW);
-  digitalWrite(enable1Pin, 0);
-}
-// End feed function
+  Serial.println("Feeding now");
 
+}
+
+// End feed function
 
 void setup() {
   Serial.begin(115200);
   SPIFFS.begin(true);
 
   // More motor setup
-   // Initialize the output variables as outputs
+  // Initialize the output variables as outputs
   pinMode(output26, OUTPUT);
   pinMode(output27, OUTPUT);
   // pinMode(enable1Pin, OUTPUT);
@@ -87,7 +95,7 @@ void setup() {
   WiFi.begin(ssid, password);
   while (WiFi.status() != WL_CONNECTED) {
     delay(1000);
-    Serial.println("Connecting to WiFi..."); 
+    Serial.println("Connecting to WiFi...");
   }
 
   Serial.println("Connected to WiFi");
@@ -95,17 +103,17 @@ void setup() {
   Serial.println(WiFi.localIP());
   // End connect to wifi
 
-
   // Initialize the NTP client
   timeClient.begin();
 
-  server.on("/", HTTP_GET, [](AsyncWebServerRequest* request){
+  server.on("/", HTTP_GET, [](AsyncWebServerRequest* request) {
     FeedSettings settings = readSettingsFromFile();
     String html = "<html><head><style>";
     html += "body { text-align: center; }";
     html += "form { display: inline-block; text-align: left; }";
     html += "input[type='submit'] { padding: 10px 20px; font-size: 16px; }";
     html += ".feed-button { padding: 20px 40px; font-size: 24px; background-color: red; color: white; border-radius: 10px; border: none; }";
+    html += ".settings-button { margin-top: 20px; padding: 10px 20px; font-size: 16px; background-color: blue; color: white; border-radius: 10px; border: none; }";
     html += ".header { border-radius: 10px; background-color: lightgray; padding: 10px; }";
     html += ".horizontal-rule { border: none; border-top: 2px solid gray; margin: 30px 0; }";
     html += ".save-button { margin: 0 auto; display: block; padding: 10px 20px; font-size: 16px; background-color: green; color: white; border: none; }";
@@ -116,46 +124,62 @@ void setup() {
     html += "</h1>";
     html += "</div>";
     html += "<hr class='horizontal-rule'>";
+    html += "<br>";
+    html += "<a href='/feed'><button class='feed-button'>Feed</button></a>";
+    html += "<br>";
+    html += "<a href='/settings'><button class='settings-button'>Settings</button></a>";
+    html += "</body></html>";
+    request->send(200, "text/html", html);
+  });
+
+  server.on("/settings", HTTP_GET, [](AsyncWebServerRequest* request) {
+    FeedSettings settings = readSettingsFromFile();
+    String html = "<html><head><style>";
+    html += "body { text-align: center; }";
+    html += "form { display: inline-block; text-align: left; }";
+    html += "input[type='submit'] { padding: 10px 20px; font-size: 16px; }";
+    html += ".header { border-radius: 10px; background-color: lightgray; padding: 10px; }";
+    html += ".save-button { margin: 0 auto; display: block; padding: 10px 20px; font-size: 16px; background-color: green; color: white; border-radius: 10px;border: none; }";
+    html += "</style></head><body>";
+    html += "<div class='header'>";
+    html += "<h1>";
+    html += "Settings";
+    html += "</h1>";
+    html += "</div>";
     html += "<h2>Settings</h2>";
-    html += "<form method='POST' action='/save'>";
+    html += "<form method='POST' action='/settings'>";
     html += "Feed Amount: <input type='text' name='feedAmount' value='" + String(settings.feedAmount) + "'><br><br>";
     html += "Feed Time One: <input type='text' name='feedTimeOne' value='" + String(settings.feedTimeOne) + "'><br><br>";
     html += "Feed Time Two: <input type='text' name='feedTimeTwo' value='" + String(settings.feedTimeTwo) + "'><br><br>";
     html += "<input type='submit' class='save-button' value='Save'>";
     html += "</form>";
-    html += "<br>";
-    html += "<button class='feed-button' onclick='feedNow()'>Feed</button>";
-    html += "<script>function feedNow() { fetch('/feed').then(response => { console.log('Feeding now'); }).catch(error => { console.error(error); }); }</script>";
     html += "</body></html>";
     request->send(200, "text/html", html);
   });
 
-  server.on("/save", HTTP_POST, [](AsyncWebServerRequest* request){
+  server.on("/settings", HTTP_POST, [](AsyncWebServerRequest* request) {
     FeedSettings settings;
     if (request->hasParam("feedAmount", true)) {
       AsyncWebParameter* feedAmountParam = request->getParam("feedAmount", true);
-      settings.feedAmount = feedAmountParam->value().toInt();
+      settings.feedAmount = feedAmountParam->value();
     }
     if (request->hasParam("feedTimeOne", true)) {
       AsyncWebParameter* feedTimeOneParam = request->getParam("feedTimeOne", true);
-      settings.feedTimeOne = feedTimeOneParam->value().toInt();
+      settings.feedTimeOne = feedTimeOneParam->value();
     }
     if (request->hasParam("feedTimeTwo", true)) {
       AsyncWebParameter* feedTimeTwoParam = request->getParam("feedTimeTwo", true);
-      settings.feedTimeTwo = feedTimeTwoParam->value().toInt();
+      settings.feedTimeTwo = feedTimeTwoParam->value();
     }
     if (writeSettingsToFile(settings)) {
       request->send(200, "text/plain", "Values saved successfully.");
     } else {
       request->send(500, "text/plain", "Failed to save values.");
     }
-    request->redirect("/");
   });
 
-  server.on("/feed", HTTP_GET, [](AsyncWebServerRequest* request){
-    Serial.println("Feeding now");
+  server.on("/feed", HTTP_GET, [](AsyncWebServerRequest* request) {
     String feedAmount = readSettingsFromFile().feedAmount;
-
     feed(feedAmount.toInt());
     request->send(200, "text/plain", "Feeding now");
   });
@@ -165,9 +189,17 @@ void setup() {
 
 void loop() {
 
+  if (feedStartTime > 0 && millis() - feedStartTime >= feedDuration) {
+    digitalWrite(output27, LOW);
+    digitalWrite(output26, LOW);
+    digitalWrite(enable1Pin, 0);
+    feedStartTime = 0; // Reset the feeding start time
+    Serial.println("Feeding Complete");
+  }
+
   String feedTimeOne = readSettingsFromFile().feedTimeOne;
-String feedTimeTwo = readSettingsFromFile().feedTimeTwo;
-String feedAmount = readSettingsFromFile().feedAmount;
+  String feedTimeTwo = readSettingsFromFile().feedTimeTwo;
+  String feedAmount = readSettingsFromFile().feedAmount;
 
   // Update the NTP client
   timeClient.update();
@@ -178,15 +210,13 @@ String feedAmount = readSettingsFromFile().feedAmount;
   int currentSecondUtc = timeClient.getSeconds();
 
   // Feed if 5am or 5pm
-  if (currentHourUtc == feedTimeOne.toInt() && currentMinuteUtc == 00 && currentSecondUtc == 00 || currentHourUtc == feedTimeTwo.toInt() && currentMinuteUtc == 00 && currentSecondUtc == 00) {
-
+  if ((currentHourUtc == feedTimeOne.toInt() && currentMinuteUtc == 0 && currentSecondUtc == 0) || (currentHourUtc == feedTimeTwo.toInt() && currentMinuteUtc == 0 && currentSecondUtc == 0)) {
     feedState = "on";
     Serial.println("Feeding on");
     feed(feedAmount.toInt());
     Serial.println("Feeding off");
     feedState = "off";
   }
-
 }
 
 FeedSettings readSettingsFromFile() {
